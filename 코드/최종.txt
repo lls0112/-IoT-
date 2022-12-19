@@ -1,0 +1,122 @@
+#include "SparkFun_ADXL345.h"
+
+ADXL345 adxl = ADXL345();    // USE FOR SPI COMMUNICATION, ADXL345(chipSelectPin);
+int x,y,z;                     // Variable used to store accelerometer data
+
+
+// 자이로
+#include <VirtualWire.h>
+#include <string.h>
+ 
+  byte message[VW_MAX_MESSAGE_LEN];          //받은 메세지 저장할 임시변수 선언           
+  byte messageLength = VW_MAX_MESSAGE_LEN; 
+ 
+ int ledPin = 13;
+ // 수신부
+ #include <Bounce2.h>             //바운싱 현상을 방지하기 위해 이 라이브러리를 사용합니다.
+ 
+ int buttonPin = 2;            //버튼과 연결된 2번 핀
+
+ boolean oneTimeFlag;
+ 
+ Bounce bouncer = Bounce();    
+// 송신부
+ int buzzer = 7;     
+ // 부저
+ void setup(){                  // The setup Program runs one time at power up or after reset
+  Serial.begin(9600);          // Start the serial terminal with a baudRate of 9600
+  adxl.powerOn();              // Power on the ADXL345
+
+  adxl.setRangeSetting(4);     // Range settings 2g(highest sensetivity), 4g, 8g or 16g(lowest sensetivity)
+  adxl.setSpiBit(0);// Configure the device to be in 4 wire SPI mode
+  // 자이로
+   vw_setup(2000);
+   vw_set_rx_pin(2);            //수신 핀 설정
+   vw_rx_start();               //수신 시작
+   pinMode(ledPin, OUTPUT);
+  // 수신부
+   pinMode(buttonPin, INPUT);
+   digitalWrite(buttonPin, HIGH);
+   bouncer.attach( buttonPin );
+   bouncer.interval(5);
+    
+     
+  vw_set_tx_pin(4);  
+  vw_setup(2000); //송신 핀 설정
+  // 송신부
+  pinMode(buzzer,OUTPUT);   // buzzer를 출력핀으로 설정합니다.
+  // 부저
+}
+void loop(){                   // The loop program follows the setup program and repeats forever
+  adxl.readAccel(&x, &y, &z);  // Read the accelerometer values and store them in x, y, and z
+  sendAccelToProcessing();     // Send the x, y, and z values to the dbBoardsAdxlGraphP.pde to be displayed
+  // 자이로
+  if (vw_get_message(message, &messageLength)) {       //메세지 읽어옴
+     for(int i=0;i<messageLength;i++){
+        Serial.write(message[i]);
+        Serial.print("\n");
+        if(message[0] == '1'){
+          digitalWrite(ledPin, HIGH);
+          buzzeron();
+        }
+        else{                       //명령어가 2이면
+          digitalWrite(ledPin, LOW);    //LED OFF
+        }
+      }
+     }
+ // 수신부
+   if (bouncer.update()){
+      if(oneTimeFlag==false){
+        Serial.println("on");
+        sendmes("1");
+        oneTimeFlag=true;
+      }else{
+        Serial.println("off");
+        sendmes("2");
+        oneTimeFlag=false;
+      }
+    }else{
+      if (oneTimeFlag==false){
+        Serial.println("off");
+        sendmes("2");
+        oneTimeFlag=false;
+       }else{
+        Serial.println("on");
+        sendmes("1");
+        oneTimeFlag=true;
+       }
+    }
+    // 송신부
+  delay(100);   
+}
+
+void sendAccelToProcessing(){  // Send the x, y, and z values to the dbBoardsAdxlGraphP.pde to be displayed
+
+  unsigned long active_value = 0;
+  int gx, gy, gz;
+  gx = x-3;
+  gy = y-2;
+  gz = z-119;
+
+  active_value = active_value + abs(gx) + abs(gy) + abs(gz);
+  if ( active_value> 500 )
+  {
+    Serial.print("\n Active : ");
+    Serial.print(active_value);
+  }
+}
+void sendmes(const char *message) {
+      vw_send((uint8_t *)message, strlen(message));             //메세지 전송
+      vw_wait_tx();                                        //메세지 전송 완료시 까지 기다림
+    } 
+void buzzeron(){
+   tone(buzzer,956);
+   delay(500);                          // buzzer에 0.5초간 도를 출력하도록 합니다.
+   tone(buzzer,1014);
+   delay(500);                          //buzzer에 0.5초간 레를 출력하도록 합니다.
+   tone(buzzer,1136);
+   delay(500);                          //buzzer에 0.5초간 미를 출력하도록 합니다.
+   tone(buzzer,1275);
+   delay(500);                          //buzzer에 0.5초간 파를 출력하도록 합니다.
+ // 부저
+}
