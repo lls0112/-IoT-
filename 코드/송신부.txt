@@ -1,0 +1,49 @@
+#include <VirtualWire.h>       //본 스케치는 VirtualWire 라이브러리를 사용합니다.
+#include <Bounce2.h>             //바운싱 현상을 방지하기 위해 이 라이브러리를 사용합니다.
+ 
+ int buttonPin = 2;            //버튼과 연결된 2번 핀
+
+ boolean oneTimeFlag;
+ 
+ Bounce bouncer = Bounce();    
+ 
+  void setup() {
+    pinMode(buttonPin, INPUT);
+    digitalWrite(buttonPin, HIGH);
+    bouncer.attach( buttonPin );
+    bouncer.interval(5);
+    
+     
+    vw_set_tx_pin(4);  
+    vw_setup(2000); //송신 핀 설정
+    Serial.begin(9600);
+  }
+ 
+  void loop() {
+    if (bouncer.update()){
+      if(oneTimeFlag==false){
+        Serial.println("on");
+        sendmes("1");
+        oneTimeFlag=true;
+      }else{
+        Serial.println("off");
+        sendmes("2");
+        oneTimeFlag=false;
+      }
+    }else{
+      if (oneTimeFlag==false){
+        Serial.println("off");
+        sendmes("2");
+        oneTimeFlag=false;
+       }else{
+        Serial.println("on");
+        sendmes("1");
+        oneTimeFlag=true;
+       }
+    }
+  }
+ //메세지 송신 함수
+  void sendmes(const char *message) {
+      vw_send((uint8_t *)message, strlen(message));             //메세지 전송
+      vw_wait_tx();                                        //메세지 전송 완료시 까지 기다림
+    }  
